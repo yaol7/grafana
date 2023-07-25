@@ -9,6 +9,8 @@ import (
 )
 
 type folderInfo struct {
+	Guid string `json:"guid"`
+
 	UID  string `json:"uid"`
 	Name string `json:"name"` // original display name
 	Slug string `json:"slug"` // full slug
@@ -21,7 +23,7 @@ type folderInfo struct {
 	right int32
 
 	// Build the tree
-	parentUID string
+	parentGuid string
 
 	// Calculated after query
 	parent   *folderInfo
@@ -32,37 +34,34 @@ type folderInfo struct {
 // This will replace all entries in `entity_folder`
 // This is pretty heavy weight, but it does give us a sorted folder list
 // NOTE: this could be done async with a mutex/lock?  reconciler pattern
-func updateFolderTree(ctx context.Context, tx *session.SessionTx, tenant int64) error {
-	_, err := tx.Exec(ctx, "DELETE FROM entity_folder WHERE tenant_id=?", tenant)
+func updateFolderTree(ctx context.Context, tx *session.SessionTx, tenantId int64) error {
+	_, err := tx.Exec(ctx, "DELETE FROM entity_folder WHERE tenant_id=?", tenantId)
 	if err != nil {
 		return err
 	}
 
+	query := "SELECT guid,uid,folder,name,slug" +
+		" FROM entity" +
+		" WHERE kind=? AND tenant_id=?" +
+		" ORDER BY slug asc"
+	args := []interface{}{entity.StandardKindFolder, tenantId}
+
 	all := []*folderInfo{}
-	rows, err := tx.Query(ctx, "SELECT uid,folder,name,slug FROM entity WHERE kind=? AND tenant_id=? ORDER BY slug asc;",
-		entity.StandardKindFolder, tenant)
+	rows, err := tx.Query(ctx, query, args...)
 	if err != nil {
 		return err
 	}
+	defer func() { _ = rows.Close() }()
+
 	for rows.Next() {
 		folder := folderInfo{
 			children: []*folderInfo{},
 		}
-		err = rows.Scan(&folder.UID, &folder.parentUID, &folder.Name, &folder.originalSlug)
+		err = rows.Scan(&folder.Guid, &folder.UID, &folder.parentGuid, &folder.Name, &folder.originalSlug)
 		if err != nil {
-			break
+			return err
 		}
 		all = append(all, &folder)
-	}
-	errClose := rows.Close()
-	// TODO: Use some kind of multi-error.
-	// Until then, we want to prioritize errors coming from the .Scan
-	// over those coming from .Close.
-	if err != nil {
-		return err
-	}
-	if errClose != nil {
-		return errClose
 	}
 
 	root, lost, err := buildFolderTree(all)
@@ -70,13 +69,13 @@ func updateFolderTree(ctx context.Context, tx *session.SessionTx, tenant int64) 
 		return err
 	}
 
-	err = insertFolderInfo(ctx, tx, tenant, root, false)
+	err = insertFolderInfo(ctx, tx, tenantId, root, false)
 	if err != nil {
 		return err
 	}
 
 	for _, folder := range lost {
-		err = insertFolderInfo(ctx, tx, tenant, folder, true)
+		err = insertFolderInfo(ctx, tx, tenantId, folder, true)
 		if err != nil {
 			return err
 		}
@@ -101,7 +100,7 @@ func buildFolderTree(all []*folderInfo) (*folderInfo, []*folderInfo, error) {
 
 	// already sorted by slug
 	for _, folder := range all {
-		parent, ok := lookup[folder.parentUID]
+		parent, ok := lookup[folder.parentGuid]
 		if ok {
 			folder.parent = parent
 			parent.children = append(parent.children, folder)
@@ -138,15 +137,15 @@ func setMPTTOrder(folder *folderInfo, stack []*folderInfo, idx int32) (int32, er
 	return folder.right, nil
 }
 
-func insertFolderInfo(ctx context.Context, tx *session.SessionTx, tenant int64, folder *folderInfo, isDetached bool) error {
+func insertFolderInfo(ctx context.Context, tx *session.SessionTx, tenantId int64, folder *folderInfo, isDetached bool) error {
 	js, _ := json.Marshal(folder.stack)
-	grn := entity.GRN{TenantId: tenant, Kind: entity.StandardKindFolder, UID: folder.UID}
+
 	_, err := tx.Exec(ctx,
 		`INSERT INTO entity_folder `+
-			"(grn, tenant_id, uid, slug_path, tree, depth, left, right, detached) "+
+			"(guid, tenant_id, uid, slug_path, tree, depth, lft, rgt, detached) "+
 			`VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		grn.ToGRNString(),
-		tenant,
+		folder.Guid,
+		tenantId,
 		folder.UID,
 		folder.Slug,
 		string(js),
@@ -160,7 +159,7 @@ func insertFolderInfo(ctx context.Context, tx *session.SessionTx, tenant int64, 
 	}
 
 	for _, sub := range folder.children {
-		err := insertFolderInfo(ctx, tx, tenant, sub, isDetached)
+		err := insertFolderInfo(ctx, tx, tenantId, sub, isDetached)
 		if err != nil {
 			return err
 		}
