@@ -33,18 +33,6 @@ func TestRawEncoders(t *testing.T) {
 		},
 		"version": "c",
 		"folder": "f0",
-		"access": [
-		  {
-			"role": "viewer",
-			"subject": "dashboards",
-			"verb": "read"
-		  },
-		  {
-			"role": "viewer",
-			"subject": "playlist",
-			"verb": "write"
-		  }
-		],
 		"body": {
 		  "field": 1.23,
 		  "hello": "world"
