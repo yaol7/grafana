@@ -54,7 +54,7 @@ func (*OSSMigrations) AddMigration(mg *Migrator) {
 	ualert.AddTablesMigrations(mg)
 	addLibraryElementsMigrations(mg)
 
-	ualert.RerunDashAlertMigration(mg)
+	ualert.FixEarlyMigration(mg)
 	addSecretsMigration(mg)
 	addKVStoreMigrations(mg)
 	ualert.AddDashboardUIDPanelIDMigration(mg)
