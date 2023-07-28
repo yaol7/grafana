@@ -11,8 +11,8 @@ import (
 type folderInfo struct {
 	Guid string `json:"guid"`
 
-	UID  string `json:"uid"`
-	Name string `json:"name"` // original display name
+	UID      string `json:"uid"`
+	Name     string `json:"name"` // original display name
 	SlugPath string `json:"slug"` // full slug path
 
 	// original slug
