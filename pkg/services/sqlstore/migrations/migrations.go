@@ -94,6 +94,8 @@ func (*OSSMigrations) AddMigration(mg *Migrator) {
 			oauthserver.AddMigration(mg)
 		}
 	}
+
+	ualert.MigrationServiceMigration(mg)
 }
 
 func addStarMigrations(mg *Migrator) {
