@@ -55,12 +55,14 @@ func (s *entityStoreImpl) sync() {
 		}
 		body, _ := json.Marshal(dto)
 		_, _ = s.store.Write(ctx, &entity.WriteEntityRequest{
-			GRN: &entity.GRN{
-				TenantId: info.OrgID,
-				UID:      info.UID,
-				Kind:     entity.StandardKindPlaylist,
+			Entity: &entity.Entity{
+				GRN: &entity.GRN{
+					TenantId: info.OrgID,
+					UID:      info.UID,
+					Kind:     entity.StandardKindPlaylist,
+				},
+				Body: body,
 			},
-			Body: body,
 		})
 	}
 }
@@ -73,11 +75,13 @@ func (s *entityStoreImpl) Create(ctx context.Context, cmd *playlist.CreatePlayli
 			return rsp, fmt.Errorf("unable to write playlist to store")
 		}
 		_, err = s.store.Write(ctx, &entity.WriteEntityRequest{
-			GRN: &entity.GRN{
-				Kind: entity.StandardKindPlaylist,
-				UID:  rsp.UID,
+			Entity: &entity.Entity{
+				GRN: &entity.GRN{
+					Kind: entity.StandardKindPlaylist,
+					UID:  rsp.UID,
+				},
+				Body: body,
 			},
-			Body: body,
 		})
 		if err != nil {
 			return rsp, fmt.Errorf("unable to write playlist to store")
@@ -94,11 +98,13 @@ func (s *entityStoreImpl) Update(ctx context.Context, cmd *playlist.UpdatePlayli
 			return rsp, fmt.Errorf("unable to write playlist to store")
 		}
 		_, err = s.store.Write(ctx, &entity.WriteEntityRequest{
-			GRN: &entity.GRN{
-				UID:  rsp.Uid,
-				Kind: entity.StandardKindPlaylist,
+			Entity: &entity.Entity{
+				GRN: &entity.GRN{
+					UID:  rsp.Uid,
+					Kind: entity.StandardKindPlaylist,
+				},
+				Body: body,
 			},
-			Body: body,
 		})
 		if err != nil {
 			return rsp, fmt.Errorf("unable to write playlist to store")
