@@ -3663,7 +3663,7 @@ __metadata:
     react-use: 17.4.0
     regenerator-runtime: 0.13.11
     rimraf: 5.0.1
-    rollup: 2.79.1
+    rollup: 3.28.1
     rollup-plugin-dts: ^5.0.0
     rollup-plugin-esbuild: 5.0.0
     rollup-plugin-node-externals: ^5.0.0
@@ -3691,7 +3691,7 @@ __metadata:
     "@types/node": 18.16.19
     esbuild: 0.18.12
     rimraf: 5.0.1
-    rollup: 2.79.1
+    rollup: 3.28.1
     rollup-plugin-dts: ^5.0.0
     rollup-plugin-esbuild: 5.0.0
     rollup-plugin-node-externals: ^5.0.0
@@ -3739,7 +3739,7 @@ __metadata:
     mocha: 10.2.0
     resolve-bin: 1.0.1
     rimraf: 5.0.1
-    rollup: 2.79.1
+    rollup: 3.28.1
     rollup-plugin-dts: ^5.0.0
     rollup-plugin-esbuild: 5.0.0
     rollup-plugin-node-externals: ^5.0.0
@@ -3913,7 +3913,7 @@ __metadata:
     react: 18.2.0
     react-dom: 18.2.0
     rimraf: 5.0.1
-    rollup: 2.79.1
+    rollup: 3.28.1
     rollup-plugin-dts: ^5.0.0
     rollup-plugin-esbuild: 5.0.0
     rollup-plugin-node-externals: ^5.0.0
@@ -3958,7 +3958,7 @@ __metadata:
     esbuild: 0.18.12
     glob: ^10.2.7
     rimraf: 5.0.1
-    rollup: 2.79.1
+    rollup: 3.28.1
     rollup-plugin-dts: ^5.0.0
     rollup-plugin-esbuild: 5.0.0
     rollup-plugin-node-externals: ^5.0.0
@@ -4120,7 +4120,7 @@ __metadata:
     react-use: 17.4.0
     react-window: 1.8.9
     rimraf: 5.0.1
-    rollup: 2.79.1
+    rollup: 3.28.1
     rollup-plugin-dts: ^5.0.0
     rollup-plugin-esbuild: 5.0.0
     rollup-plugin-node-externals: ^5.0.0
@@ -28910,9 +28910,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"rollup@npm:2.79.1":
-  version: 2.79.1
-  resolution: "rollup@npm:2.79.1"
+"rollup@npm:3.28.1":
+  version: 3.28.1
+  resolution: "rollup@npm:3.28.1"
   dependencies:
     fsevents: ~2.3.2
   dependenciesMeta:
@@ -28920,7 +28920,7 @@ __metadata:
       optional: true
   bin:
     rollup: dist/bin/rollup
-  checksum: 6a2bf167b3587d4df709b37d149ad0300692cc5deb510f89ac7bdc77c8738c9546ae3de9322b0968e1ed2b0e984571f5f55aae28fa7de4cfcb1bc5402a4e2be6
+  checksum: 1fcab0929c16130218447c76c19b56ccc0e677110552462297e3679188fc70185a6ec418cef8ce138ec9fb78fd5188537a3f5d28762788e8c88b12a7fb8ba0fb
   languageName: node
   linkType: hard
 
