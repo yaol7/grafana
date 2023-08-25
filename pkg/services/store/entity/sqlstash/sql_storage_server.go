@@ -743,7 +743,7 @@ func (s *sqlEntityServer) History(ctx context.Context, r *entity.EntityHistoryRe
 }
 
 func (s *sqlEntityServer) Search(ctx context.Context, r *entity.EntitySearchRequest) (*entity.EntitySearchResponse, error) {
-		user, err := appcontext.User(ctx)
+	user, err := appcontext.User(ctx)
 	if err != nil {
 		return nil, err
 	}
