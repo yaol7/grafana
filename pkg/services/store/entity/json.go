@@ -7,6 +7,8 @@ import (
 	"unsafe"
 
 	jsoniter "github.com/json-iterator/go"
+
+	"github.com/grafana/grafana/pkg/infra/grn"
 )
 
 func init() { //nolint:gochecknoinits
@@ -135,7 +137,7 @@ func readEntity(iter *jsoniter.Iterator, raw *Entity) {
 	for l1Field := iter.ReadObject(); l1Field != ""; l1Field = iter.ReadObject() {
 		switch l1Field {
 		case "GRN":
-			raw.GRN = &GRN{}
+			raw.GRN = &grn.GRN{}
 			iter.ReadVal(raw.GRN)
 		case "guid":
 			raw.Guid = iter.ReadString()

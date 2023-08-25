@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/metadata"
 
+	"github.com/grafana/grafana/pkg/infra/grn"
 	"github.com/grafana/grafana/pkg/services/store"
 	"github.com/grafana/grafana/pkg/services/store/entity"
 	"github.com/grafana/grafana/pkg/util"
@@ -24,7 +25,7 @@ var (
 )
 
 type rawEntityMatcher struct {
-	grn          *entity.GRN
+	grn          *grn.GRN
 	createdRange []time.Time
 	updatedRange []time.Time
 	createdBy    string
@@ -53,14 +54,14 @@ func requireEntityMatch(t *testing.T, obj *entity.Entity, m rawEntityMatcher) {
 
 	mismatches := ""
 	if m.grn != nil {
-		if m.grn.TenantId > 0 && m.grn.TenantId != obj.GRN.TenantId {
-			mismatches += fmt.Sprintf("expected tenant: %d, actual: %d\n", m.grn.TenantId, obj.GRN.TenantId)
+		if m.grn.TenantID > 0 && m.grn.TenantID != obj.GRN.TenantID {
+			mismatches += fmt.Sprintf("expected tenant: %d, actual: %d\n", m.grn.TenantID, obj.GRN.TenantID)
 		}
-		if m.grn.Kind != "" && m.grn.Kind != obj.GRN.Kind {
-			mismatches += fmt.Sprintf("expected Kind: %s, actual: %s\n", m.grn.Kind, obj.GRN.Kind)
+		if m.grn.ResourceKind != "" && m.grn.ResourceKind != obj.GRN.ResourceKind {
+			mismatches += fmt.Sprintf("expected ResourceKind: %s, actual: %s\n", m.grn.ResourceKind, obj.GRN.ResourceKind)
 		}
-		if m.grn.UID != "" && m.grn.UID != obj.GRN.UID {
-			mismatches += fmt.Sprintf("expected UID: %s, actual: %s\n", m.grn.UID, obj.GRN.UID)
+		if m.grn.ResourceIdentifier != "" && m.grn.ResourceIdentifier != obj.GRN.ResourceIdentifier {
+			mismatches += fmt.Sprintf("expected ResourceIdentifier: %s, actual: %s\n", m.grn.ResourceIdentifier, obj.GRN.ResourceIdentifier)
 		}
 	}
 
@@ -134,15 +135,15 @@ func TestIntegrationEntityServer(t *testing.T) {
 	fakeUser := store.GetUserIDString(testCtx.user)
 	firstVersion := "1"
 	kind := entity.StandardKindJSONObj
-	grn := &entity.GRN{
-		Kind: kind,
-		UID:  "my-test-entity",
+	testGrn := &grn.GRN{
+		ResourceKind:       kind,
+		ResourceIdentifier: "my-test-entity",
 	}
 	body := []byte("{\"name\":\"John\"}")
 
 	t.Run("should not retrieve non-existent objects", func(t *testing.T) {
 		resp, err := testCtx.client.Read(ctx, &entity.ReadEntityRequest{
-			GRN: grn,
+			GRN: testGrn,
 		})
 		require.NoError(t, err)
 
@@ -154,7 +155,7 @@ func TestIntegrationEntityServer(t *testing.T) {
 		before := time.Now()
 		writeReq := &entity.WriteEntityRequest{
 			Entity: &entity.Entity{
-				GRN:     grn,
+				GRN:     testGrn,
 				Body:    body,
 				Message: "first entity!",
 			},
@@ -171,7 +172,7 @@ func TestIntegrationEntityServer(t *testing.T) {
 		requireVersionMatch(t, writeResp.Entity, versionMatcher)
 
 		readResp, err := testCtx.client.Read(ctx, &entity.ReadEntityRequest{
-			GRN:      grn,
+			GRN:      testGrn,
 			Version:  "",
 			WithBody: true,
 		})
@@ -180,12 +181,12 @@ func TestIntegrationEntityServer(t *testing.T) {
 
 		foundGRN := readResp.GRN
 		require.NotNil(t, foundGRN)
-		require.Equal(t, testCtx.user.OrgID, foundGRN.TenantId) // orgId becomes the tenant id when not set
-		require.Equal(t, grn.Kind, foundGRN.Kind)
-		require.Equal(t, grn.UID, foundGRN.UID)
+		require.Equal(t, testCtx.user.OrgID, foundGRN.TenantID) // orgId becomes the tenant id when not set
+		require.Equal(t, testGrn.ResourceKind, foundGRN.ResourceKind)
+		require.Equal(t, testGrn.ResourceIdentifier, foundGRN.ResourceIdentifier)
 
 		objectMatcher := rawEntityMatcher{
-			grn:          grn,
+			grn:          testGrn,
 			createdRange: []time.Time{before, time.Now()},
 			updatedRange: []time.Time{before, time.Now()},
 			createdBy:    fakeUser,
@@ -196,14 +197,14 @@ func TestIntegrationEntityServer(t *testing.T) {
 		requireEntityMatch(t, readResp, objectMatcher)
 
 		deleteResp, err := testCtx.client.Delete(ctx, &entity.DeleteEntityRequest{
-			GRN:             grn,
+			GRN:             testGrn,
 			PreviousVersion: writeResp.Entity.Version,
 		})
 		require.NoError(t, err)
 		require.True(t, deleteResp.OK)
 
 		readRespAfterDelete, err := testCtx.client.Read(ctx, &entity.ReadEntityRequest{
-			GRN:      grn,
+			GRN:      testGrn,
 			Version:  "",
 			WithBody: true,
 		})
@@ -213,9 +214,9 @@ func TestIntegrationEntityServer(t *testing.T) {
 
 	t.Run("should be able to update an object", func(t *testing.T) {
 		before := time.Now()
-		grn := &entity.GRN{
-			Kind: kind,
-			UID:  util.GenerateShortUID(),
+		grn := &grn.GRN{
+			ResourceKind:       kind,
+			ResourceIdentifier: util.GenerateShortUID(),
 		}
 
 		writeReq1 := &entity.WriteEntityRequest{
@@ -322,7 +323,7 @@ func TestIntegrationEntityServer(t *testing.T) {
 		kind2 := entity.StandardKindPlaylist
 		w1, err := testCtx.client.Write(ctx, &entity.WriteEntityRequest{
 			Entity: &entity.Entity{
-				GRN:  grn,
+				GRN:  testGrn,
 				Body: body,
 			},
 		})
@@ -330,9 +331,9 @@ func TestIntegrationEntityServer(t *testing.T) {
 
 		w2, err := testCtx.client.Write(ctx, &entity.WriteEntityRequest{
 			Entity: &entity.Entity{
-				GRN: &entity.GRN{
-					UID:  uid2,
-					Kind: kind,
+				GRN: &grn.GRN{
+					ResourceIdentifier: uid2,
+					ResourceKind:       kind,
 				},
 				Body: body,
 			},
@@ -341,9 +342,9 @@ func TestIntegrationEntityServer(t *testing.T) {
 
 		w3, err := testCtx.client.Write(ctx, &entity.WriteEntityRequest{
 			Entity: &entity.Entity{
-				GRN: &entity.GRN{
-					UID:  uid3,
-					Kind: kind2,
+				GRN: &grn.GRN{
+					ResourceIdentifier: uid3,
+					ResourceKind:       kind2,
 				},
 				Body: body,
 			},
@@ -352,9 +353,9 @@ func TestIntegrationEntityServer(t *testing.T) {
 
 		w4, err := testCtx.client.Write(ctx, &entity.WriteEntityRequest{
 			Entity: &entity.Entity{
-				GRN: &entity.GRN{
-					UID:  uid4,
-					Kind: kind2,
+				GRN: &grn.GRN{
+					ResourceIdentifier: uid4,
+					ResourceKind:       kind2,
 				},
 				Body: body,
 			},
@@ -372,8 +373,8 @@ func TestIntegrationEntityServer(t *testing.T) {
 		kinds := make([]string, 0, len(search.Results))
 		version := make([]string, 0, len(search.Results))
 		for _, res := range search.Results {
-			uids = append(uids, res.GRN.UID)
-			kinds = append(kinds, res.GRN.Kind)
+			uids = append(uids, res.GRN.ResourceIdentifier)
+			kinds = append(kinds, res.GRN.ResourceKind)
 			version = append(version, res.Version)
 		}
 		require.Equal(t, []string{"my-test-entity", "uid2", "uid3", "uid4"}, uids)
@@ -394,8 +395,8 @@ func TestIntegrationEntityServer(t *testing.T) {
 		kinds = make([]string, 0, len(searchKind1.Results))
 		version = make([]string, 0, len(searchKind1.Results))
 		for _, res := range searchKind1.Results {
-			uids = append(uids, res.GRN.UID)
-			kinds = append(kinds, res.GRN.Kind)
+			uids = append(uids, res.GRN.ResourceIdentifier)
+			kinds = append(kinds, res.GRN.ResourceKind)
 			version = append(version, res.Version)
 		}
 		require.Equal(t, []string{"my-test-entity", "uid2"}, uids)
@@ -410,9 +411,9 @@ func TestIntegrationEntityServer(t *testing.T) {
 		kind := entity.StandardKindDashboard
 		_, err := testCtx.client.Write(ctx, &entity.WriteEntityRequest{
 			Entity: &entity.Entity{
-				GRN: &entity.GRN{
-					Kind: kind,
-					UID:  "blue-green",
+				GRN: &grn.GRN{
+					ResourceKind:       kind,
+					ResourceIdentifier: "blue-green",
 				},
 				Body: []byte(dashboardWithTagsBlueGreen),
 			},
@@ -421,9 +422,9 @@ func TestIntegrationEntityServer(t *testing.T) {
 
 		_, err = testCtx.client.Write(ctx, &entity.WriteEntityRequest{
 			Entity: &entity.Entity{
-				GRN: &entity.GRN{
-					Kind: kind,
-					UID:  "red-green",
+				GRN: &grn.GRN{
+					ResourceKind:       kind,
+					ResourceIdentifier: "red-green",
 				},
 				Body: []byte(dashboardWithTagsRedGreen),
 			},
@@ -441,7 +442,7 @@ func TestIntegrationEntityServer(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, search)
 		require.Len(t, search.Results, 1)
-		require.Equal(t, search.Results[0].GRN.UID, "red-green")
+		require.Equal(t, search.Results[0].GRN.ResourceIdentifier, "red-green")
 
 		search, err = testCtx.client.Search(ctx, &entity.EntitySearchRequest{
 			Kind:       []string{kind},
@@ -455,7 +456,7 @@ func TestIntegrationEntityServer(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, search)
 		require.Len(t, search.Results, 1)
-		require.Equal(t, search.Results[0].GRN.UID, "red-green")
+		require.Equal(t, search.Results[0].GRN.ResourceIdentifier, "red-green")
 
 		search, err = testCtx.client.Search(ctx, &entity.EntitySearchRequest{
 			Kind:       []string{kind},

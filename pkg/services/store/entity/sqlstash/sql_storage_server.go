@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/grafana/grafana/pkg/infra/appcontext"
+	"github.com/grafana/grafana/pkg/infra/grn"
 	"github.com/grafana/grafana/pkg/infra/log"
 	"github.com/grafana/grafana/pkg/services/featuremgmt"
 	"github.com/grafana/grafana/pkg/services/grpcserver"
@@ -83,13 +84,13 @@ func (s *sqlEntityServer) getReadSelect(r *entity.ReadEntityRequest) string {
 
 func (s *sqlEntityServer) rowToReadEntityResponse(ctx context.Context, rows *sql.Rows, r *entity.ReadEntityRequest) (*entity.Entity, error) {
 	raw := &entity.Entity{
-		GRN:    &entity.GRN{},
+		GRN:    &grn.GRN{},
 		Origin: &entity.EntityOriginInfo{},
 	}
 
 	args := []interface{}{
 		&raw.Guid,
-		&raw.GRN.TenantId, &raw.GRN.Kind, &raw.GRN.UID, &raw.Folder,
+		&raw.GRN.TenantID, &raw.GRN.ResourceKind, &raw.GRN.ResourceIdentifier, &raw.Folder,
 		&raw.Version, &raw.Size, &raw.ETag, &raw.Errors,
 		&raw.CreatedAt, &raw.CreatedBy,
 		&raw.UpdatedAt, &raw.UpdatedBy,
@@ -117,7 +118,7 @@ func (s *sqlEntityServer) rowToReadEntityResponse(ctx context.Context, rows *sql
 	return raw, nil
 }
 
-func (s *sqlEntityServer) validateGRN(ctx context.Context, grn *entity.GRN) (*entity.GRN, error) {
+func (s *sqlEntityServer) validateGRN(ctx context.Context, grn *grn.GRN) (*grn.GRN, error) {
 	if grn == nil {
 		return nil, fmt.Errorf("missing GRN")
 	}
@@ -125,22 +126,22 @@ func (s *sqlEntityServer) validateGRN(ctx context.Context, grn *entity.GRN) (*en
 	if err != nil {
 		return nil, err
 	}
-	if grn.TenantId == 0 {
-		grn.TenantId = user.OrgID
-	} else if grn.TenantId != user.OrgID {
+	if grn.TenantID == 0 {
+		grn.TenantID = user.OrgID
+	} else if grn.TenantID != user.OrgID {
 		return nil, fmt.Errorf("tenant ID does not match userID")
 	}
 
-	if grn.Kind == "" {
-		return nil, fmt.Errorf("GRN missing kind")
+	if grn.ResourceKind == "" {
+		return nil, fmt.Errorf("GRN missing ResourceKind")
 	}
-	if grn.UID == "" {
-		return nil, fmt.Errorf("GRN missing UID")
+	if grn.ResourceIdentifier == "" {
+		return nil, fmt.Errorf("GRN missing ResourceIdentifier")
 	}
-	if len(grn.UID) > 64 {
-		return nil, fmt.Errorf("GRN UID is too long (>64)")
+	if len(grn.ResourceIdentifier) > 64 {
+		return nil, fmt.Errorf("GRN ResourceIdentifier is too long (>64)")
 	}
-	if strings.ContainsAny(grn.UID, "/#$@?") {
+	if strings.ContainsAny(grn.ResourceIdentifier, "/#$@?") {
 		return nil, fmt.Errorf("invalid character in GRN")
 	}
 	return grn, nil
@@ -158,7 +159,7 @@ func (s *sqlEntityServer) read(ctx context.Context, tx session.SessionQuerier, r
 
 	table := "entity"
 	where := " (tenant_id=? AND kind=? AND uid=?)"
-	args := []interface{}{grn.TenantId, grn.Kind, grn.UID}
+	args := []interface{}{grn.TenantID, grn.ResourceKind, grn.ResourceIdentifier}
 
 	if r.Version != "" {
 		table = "entity_history"
@@ -208,7 +209,7 @@ func (s *sqlEntityServer) BatchRead(ctx context.Context, b *entity.BatchReadEnti
 		}
 
 		constraints = append(constraints, "(tenant_id=? AND kind=? AND uid=?)")
-		args = append(args, grn.TenantId, grn.Kind, grn.UID)
+		args = append(args, grn.TenantID, grn.ResourceKind, grn.ResourceIdentifier)
 		if r.Version != "" {
 			return nil, fmt.Errorf("version not supported for batch read (yet?)")
 		}
@@ -416,9 +417,9 @@ func (s *sqlEntityServer) AdminWrite(ctx context.Context, r *entity.AdminWriteEn
 		values := map[string]interface{}{
 			// below are only set at creation
 			"guid":       current.Guid,
-			"tenant_id":  grn.TenantId,
-			"kind":       grn.Kind,
-			"uid":        grn.UID,
+			"tenant_id":  grn.TenantID,
+			"kind":       grn.ResourceKind,
+			"uid":        grn.ResourceIdentifier,
 			"created_at": createdAt,
 			"created_by": createdBy,
 			// below are set during creation and update
@@ -501,9 +502,9 @@ func (s *sqlEntityServer) AdminWrite(ctx context.Context, r *entity.AdminWriteEn
 			rsp.Status = entity.WriteEntityResponse_CREATED
 		}
 
-		switch current.GRN.Kind {
+		switch current.GRN.ResourceKind {
 		case entity.StandardKindFolder:
-			err = updateFolderTree(ctx, tx, grn.TenantId)
+			err = updateFolderTree(ctx, tx, grn.TenantID)
 			if err != nil {
 				s.log.Error("error updating folder tree", "msg", err.Error())
 				return err
@@ -673,8 +674,8 @@ func doDelete(ctx context.Context, tx *session.SessionTx, ent *entity.Entity) (b
 		return false, err
 	}
 
-	if ent.GRN.Kind == entity.StandardKindFolder {
-		err = updateFolderTree(ctx, tx, ent.GRN.TenantId)
+	if ent.GRN.ResourceKind == entity.StandardKindFolder {
+		err = updateFolderTree(ctx, tx, ent.GRN.TenantID)
 	}
 
 	return true, err
@@ -703,7 +704,7 @@ func (s *sqlEntityServer) History(ctx context.Context, r *entity.EntityHistoryRe
 		" FROM entity_history" +
 		" WHERE (tenant_id=? AND kind=? AND uid=?)"
 	args := []interface{}{
-		grn.TenantId, grn.Kind, grn.UID,
+		grn.TenantID, grn.ResourceKind, grn.ResourceIdentifier,
 	}
 
 	if r.NextPageToken != "" {
@@ -825,13 +826,13 @@ func (s *sqlEntityServer) Search(ctx context.Context, r *entity.EntitySearchRequ
 	rsp := &entity.EntitySearchResponse{}
 	for rows.Next() {
 		result := &entity.EntitySearchResult{
-			GRN: &entity.GRN{},
+			GRN: &grn.GRN{},
 		}
 
 		var labels []byte
 
 		args := []interface{}{
-			&token, &result.Guid, &result.GRN.TenantId, &result.GRN.Kind, &result.GRN.UID,
+			&token, &result.Guid, &result.GRN.TenantID, &result.GRN.ResourceKind, &result.GRN.ResourceIdentifier,
 			&result.Version, &result.Folder, &result.Slug, &result.ErrorJson,
 			&result.Size, &result.UpdatedAt, &result.UpdatedBy,
 			&result.Name, &result.Description,
@@ -919,11 +920,11 @@ func (s *sqlEntityServer) FindReferences(ctx context.Context, r *entity.Referenc
 	rsp := &entity.EntitySearchResponse{}
 	for rows.Next() {
 		result := &entity.EntitySearchResult{
-			GRN: &entity.GRN{},
+			GRN: &grn.GRN{},
 		}
 
 		args := []interface{}{
-			&token, &result.Guid, &result.GRN.TenantId, &result.GRN.Kind, &result.GRN.UID,
+			&token, &result.Guid, &result.GRN.TenantID, &result.GRN.ResourceKind, &result.GRN.ResourceIdentifier,
 			&result.Version, &result.Folder, &result.Slug, &result.ErrorJson,
 			&result.Size, &result.UpdatedAt, &result.UpdatedBy,
 			&result.Name, &result.Description, &result.Meta,

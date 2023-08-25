@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/grafana/grafana/pkg/infra/appcontext"
+	"github.com/grafana/grafana/pkg/infra/grn"
 	"github.com/grafana/grafana/pkg/services/playlist"
 	"github.com/grafana/grafana/pkg/services/sqlstore/session"
 	"github.com/grafana/grafana/pkg/services/store/entity"
@@ -56,10 +57,10 @@ func (s *entityStoreImpl) sync() {
 		body, _ := json.Marshal(dto)
 		_, _ = s.store.Write(ctx, &entity.WriteEntityRequest{
 			Entity: &entity.Entity{
-				GRN: &entity.GRN{
-					TenantId: info.OrgID,
-					UID:      info.UID,
-					Kind:     entity.StandardKindPlaylist,
+				GRN: &grn.GRN{
+					TenantID:           info.OrgID,
+					ResourceIdentifier: info.UID,
+					ResourceKind:       entity.StandardKindPlaylist,
 				},
 				Body: body,
 			},
@@ -76,9 +77,9 @@ func (s *entityStoreImpl) Create(ctx context.Context, cmd *playlist.CreatePlayli
 		}
 		_, err = s.store.Write(ctx, &entity.WriteEntityRequest{
 			Entity: &entity.Entity{
-				GRN: &entity.GRN{
-					Kind: entity.StandardKindPlaylist,
-					UID:  rsp.UID,
+				GRN: &grn.GRN{
+					ResourceKind:       entity.StandardKindPlaylist,
+					ResourceIdentifier: rsp.UID,
 				},
 				Body: body,
 			},
@@ -99,9 +100,9 @@ func (s *entityStoreImpl) Update(ctx context.Context, cmd *playlist.UpdatePlayli
 		}
 		_, err = s.store.Write(ctx, &entity.WriteEntityRequest{
 			Entity: &entity.Entity{
-				GRN: &entity.GRN{
-					UID:  rsp.Uid,
-					Kind: entity.StandardKindPlaylist,
+				GRN: &grn.GRN{
+					ResourceIdentifier: rsp.Uid,
+					ResourceKind:       entity.StandardKindPlaylist,
 				},
 				Body: body,
 			},
@@ -117,9 +118,9 @@ func (s *entityStoreImpl) Delete(ctx context.Context, cmd *playlist.DeletePlayli
 	err := s.sqlimpl.store.Delete(ctx, cmd)
 	if err == nil {
 		_, err = s.store.Delete(ctx, &entity.DeleteEntityRequest{
-			GRN: &entity.GRN{
-				UID:  cmd.UID,
-				Kind: entity.StandardKindPlaylist,
+			GRN: &grn.GRN{
+				ResourceIdentifier: cmd.UID,
+				ResourceKind:       entity.StandardKindPlaylist,
 			},
 		})
 		if err != nil {
@@ -148,9 +149,9 @@ func (s *entityStoreImpl) GetWithoutItems(ctx context.Context, q *playlist.GetPl
 
 func (s *entityStoreImpl) Get(ctx context.Context, q *playlist.GetPlaylistByUidQuery) (*playlist.PlaylistDTO, error) {
 	rsp, err := s.store.Read(ctx, &entity.ReadEntityRequest{
-		GRN: &entity.GRN{
-			UID:  q.UID,
-			Kind: entity.StandardKindPlaylist,
+		GRN: &grn.GRN{
+			ResourceIdentifier: q.UID,
+			ResourceKind:       entity.StandardKindPlaylist,
 		},
 		WithBody: true,
 	})
@@ -184,7 +185,7 @@ func (s *entityStoreImpl) Search(ctx context.Context, q *playlist.GetPlaylistsQu
 			err = json.Unmarshal(res.Body, found)
 		}
 		playlists = append(playlists, &playlist.Playlist{
-			UID:      res.GRN.UID,
+			UID:      res.GRN.ResourceIdentifier,
 			Name:     res.Name,
 			Interval: found.Interval,
 		})
