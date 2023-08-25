@@ -1,11 +1,10 @@
 #!/bin/bash
 
 # To compile all protobuf files in this repository, run
-# "mage protobuf" at the top-level.
+# "make protobuf" at the top-level.
 
 set -eu
 
-#DST_DIR=../genproto/entity
 DST_DIR=./
 
 SOURCE="${BASH_SOURCE[0]}"
