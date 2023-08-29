@@ -3,7 +3,6 @@ package pluginsintegration
 import (
 	"github.com/google/wire"
 
-	"github.com/grafana/grafana/pkg/infra/remotecache"
 	"github.com/grafana/grafana/pkg/infra/tracing"
 	"github.com/grafana/grafana/pkg/plugins"
 	"github.com/grafana/grafana/pkg/plugins/backendplugin/coreplugin"
@@ -29,6 +28,7 @@ import (
 	"github.com/grafana/grafana/pkg/plugins/oauth"
 	"github.com/grafana/grafana/pkg/plugins/pluginscdn"
 	"github.com/grafana/grafana/pkg/plugins/repo"
+	"github.com/grafana/grafana/pkg/services/auth/assertid"
 	"github.com/grafana/grafana/pkg/services/caching"
 	"github.com/grafana/grafana/pkg/services/featuremgmt"
 	"github.com/grafana/grafana/pkg/services/oauthtoken"
@@ -48,7 +48,6 @@ import (
 	"github.com/grafana/grafana/pkg/services/pluginsintegration/pluginsettings"
 	pluginSettings "github.com/grafana/grafana/pkg/services/pluginsintegration/pluginsettings/service"
 	"github.com/grafana/grafana/pkg/services/pluginsintegration/serviceregistration"
-	"github.com/grafana/grafana/pkg/services/signingkeys"
 	"github.com/grafana/grafana/pkg/setting"
 )
 
@@ -134,26 +133,26 @@ func ProvideClientDecorator(
 	pluginRegistry registry.Service,
 	oAuthTokenService oauthtoken.OAuthTokenService,
 	tracer tracing.Tracer,
-	remoteCache remotecache.CacheStorage, signingKeyService signingkeys.Service,
+	idSigner assertid.Service,
 	cachingService caching.CachingService,
 	features *featuremgmt.FeatureManager,
 ) (*client.Decorator, error) {
-	return NewClientDecorator(cfg, pCfg, pluginRegistry, oAuthTokenService, tracer, remoteCache, signingKeyService, cachingService, features)
+	return NewClientDecorator(cfg, pCfg, pluginRegistry, oAuthTokenService, tracer, idSigner, cachingService, features)
 }
 
 func NewClientDecorator(
 	cfg *setting.Cfg, pCfg *pCfg.Cfg,
 	pluginRegistry registry.Service, oAuthTokenService oauthtoken.OAuthTokenService,
-	tracer tracing.Tracer, remoteCache remotecache.CacheStorage, signingKeyService signingkeys.Service, cachingService caching.CachingService, features *featuremgmt.FeatureManager,
+	tracer tracing.Tracer, idSigner assertid.Service, cachingService caching.CachingService, features *featuremgmt.FeatureManager,
 ) (*client.Decorator, error) {
 	c := client.ProvideService(pluginRegistry, pCfg)
-	middlewares := CreateMiddlewares(cfg, oAuthTokenService, tracer, remoteCache, signingKeyService, cachingService, features)
+	middlewares := CreateMiddlewares(cfg, oAuthTokenService, tracer, idSigner, cachingService, features)
 
 	return client.NewDecorator(c, middlewares...)
 }
 
 func CreateMiddlewares(cfg *setting.Cfg, oAuthTokenService oauthtoken.OAuthTokenService,
-	tracer tracing.Tracer, remoteCache remotecache.CacheStorage, signingKeyService signingkeys.Service,
+	tracer tracing.Tracer, idSigner assertid.Service,
 	cachingService caching.CachingService, features *featuremgmt.FeatureManager) []plugins.ClientMiddleware {
 	skipCookiesNames := []string{cfg.LoginCookieName}
 	middlewares := []plugins.ClientMiddleware{
@@ -161,7 +160,7 @@ func CreateMiddlewares(cfg *setting.Cfg, oAuthTokenService oauthtoken.OAuthToken
 		clientmiddleware.NewTracingHeaderMiddleware(),
 		clientmiddleware.NewClearAuthHeadersMiddleware(),
 		clientmiddleware.NewOAuthTokenMiddleware(oAuthTokenService),
-		clientmiddleware.NewGrafanaIDMiddleware(remoteCache, signingKeyService),
+		clientmiddleware.NewGrafanaIDMiddleware(idSigner),
 		clientmiddleware.NewCookiesMiddleware(skipCookiesNames),
 		clientmiddleware.NewResourceResponseMiddleware(),
 	}
