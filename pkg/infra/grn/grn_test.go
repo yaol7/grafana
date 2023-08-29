@@ -69,7 +69,7 @@ func TestParseGRNStr(t *testing.T) {
 				t.Fatalf("wrong result. Expected success, got error %s", err.Error())
 			}
 
-			if got != test.expect {
+			if !test.expect.Equals(got) {
 				t.Fatalf("wrong result. Wanted %s, got %s\n", test.expect.String(), got.String())
 			}
 		})
