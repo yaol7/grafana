@@ -59,7 +59,7 @@ func (g *GRN) ToGRNString() string {
 
 // Check if the two GRNs reference to the same object
 // we can not use simple `*x == *b` because of the internal settings
-func (g *GRN) Equals(b *GRN) bool {
+func (g *GRN) Equal(b *GRN) bool {
 	if b == nil {
 		return false
 	}

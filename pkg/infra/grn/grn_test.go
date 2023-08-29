@@ -3,6 +3,8 @@ package grn
 import (
 	"fmt"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestParseGRNStr(t *testing.T) {
@@ -69,7 +71,7 @@ func TestParseGRNStr(t *testing.T) {
 				t.Fatalf("wrong result. Expected success, got error %s", err.Error())
 			}
 
-			if !test.expect.Equals(got) {
+			if !cmp.Equal(test.expect, got) {
 				t.Fatalf("wrong result. Wanted %s, got %s\n", test.expect.String(), got.String())
 			}
 		})
