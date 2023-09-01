@@ -171,7 +171,7 @@ describe('PromVariableQueryEditor', () => {
     });
   });
 
-  test('Calls onChange for label_names() query', async () => {
+  test('Calls onChange for label_names, label_values, metrics, query result queries and classic query', async () => {
     const onChange = jest.fn();
 
     props.query = {
@@ -182,22 +182,19 @@ describe('PromVariableQueryEditor', () => {
     render(<PromVariableQueryEditor {...props} onChange={onChange} />);
 
     await selectOptionInTest(screen.getByLabelText('Query type'), 'Label names');
+    await selectOptionInTest(screen.getByLabelText('Query type'), 'Label values');
+    await selectOptionInTest(screen.getByLabelText('Query type'), 'Metrics');
+    await selectOptionInTest(screen.getByLabelText('Query type'), 'Query result');
+    await selectOptionInTest(screen.getByLabelText('Query type'), 'Classic Query');
 
-    expect(onChange).toHaveBeenCalledWith({
-      query: 'label_names()',
-      refId,
-      qryType: 0,
-    });
+    expect(onChange).toHaveBeenCalledTimes(5);
   });
 
-  test('Does not call onChange for other queries', async () => {
+  test('Does not call onChange for series query', async () => {
     const onChange = jest.fn();
 
     render(<PromVariableQueryEditor {...props} onChange={onChange} />);
 
-    await selectOptionInTest(screen.getByLabelText('Query type'), 'Label values');
-    await selectOptionInTest(screen.getByLabelText('Query type'), 'Metrics');
-    await selectOptionInTest(screen.getByLabelText('Query type'), 'Query result');
     await selectOptionInTest(screen.getByLabelText('Query type'), 'Series query');
 
     expect(onChange).not.toHaveBeenCalled();
