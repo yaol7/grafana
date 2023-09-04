@@ -59,7 +59,7 @@ type ConditionEvalJSON struct {
 }
 
 // UnmarshalResampleCommand creates a ResampleCMD from Grafana's frontend query.
-func UnmarshalThresholdCommand(rn *rawNode) (*ThresholdCommand, error) {
+func UnmarshalThresholdCommand(rn *rawNode, r LoadedMetricsReader) (Command, error) {
 	rawQuery := rn.Query
 
 	rawExpression, ok := rawQuery["expression"]
@@ -87,12 +87,21 @@ func UnmarshalThresholdCommand(rn *rawNode) (*ThresholdCommand, error) {
 	}
 
 	// we only support one condition for now, we might want to turn this in to "OR" expressions later
-	if len(conditions) != 1 {
-		return nil, fmt.Errorf("threshold expression requires exactly one condition")
+	if len(conditions) == 1 {
+		firstCondition := conditions[0]
+		return NewThresholdCommand(rn.RefID, referenceVar, firstCondition.Evaluator.Type, firstCondition.Evaluator.Params)
+	} else if len(conditions) == 2 {
+		loading, err := NewThresholdCommand(rn.RefID, referenceVar, conditions[0].Evaluator.Type, conditions[0].Evaluator.Params)
+		if err != nil {
+			return nil, fmt.Errorf("invalid condition at index [0]: %w", err)
+		}
+		unloading, err := NewThresholdCommand(rn.RefID, referenceVar, conditions[1].Evaluator.Type, conditions[1].Evaluator.Params)
+		if err != nil {
+			return nil, fmt.Errorf("invalid condition at index [1]: %w", err)
+		}
+		return NewHysteresisCommand(rn.RefID, referenceVar, *loading, *unloading, r)
 	}
-	firstCondition := conditions[0]
-
-	return NewThresholdCommand(rn.RefID, referenceVar, firstCondition.Evaluator.Type, firstCondition.Evaluator.Params)
+	return nil, fmt.Errorf("threshold expression must have exactly one or two conditions, got %d", len(conditions))
 }
 
 // NeedsVars returns the variable names (refIds) that are dependencies

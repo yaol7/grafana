@@ -314,8 +314,6 @@ const (
 	TypeClassicConditions
 	// TypeThreshold is the CMDType for checking if a threshold has been crossed
 	TypeThreshold
-	// TypeHysteresis is he CMDType for complex thresholds that depend on the previous evaluation
-	TypeHysteresis
 )
 
 func (gt CommandType) String() string {
@@ -328,8 +326,6 @@ func (gt CommandType) String() string {
 		return "resample"
 	case TypeClassicConditions:
 		return "classic_conditions"
-	case TypeHysteresis:
-		return "hysteresis"
 	default:
 		return "unknown"
 	}
@@ -348,8 +344,6 @@ func ParseCommandType(s string) (CommandType, error) {
 		return TypeClassicConditions, nil
 	case "threshold":
 		return TypeThreshold, nil
-	case "hysteresis":
-		return TypeHysteresis, nil
 	default:
 		return TypeUnknown, fmt.Errorf("'%v' is not a recognized expression type", s)
 	}
