@@ -1,10 +1,13 @@
-FROM node:14.15.5-alpine3.13 as js-builder
+FROM --platform=linux/amd64 node:18-alpine3.17 as js-builder
 
 WORKDIR /usr/src/app/
 
 COPY package.json yarn.lock ./
 COPY packages packages
 
+RUN apk add --no-cache git openssh
+RUN npm install -g npm@9.8.1
+ENV NODE_OPTIONS --openssl-legacy-provider
 RUN yarn install --pure-lockfile --no-progress
 
 COPY tsconfig.json .eslintrc .editorconfig .browserslistrc .prettierrc.js ./
@@ -14,15 +17,22 @@ COPY scripts scripts
 COPY emails emails
 
 ENV NODE_ENV production
+RUN npx browserslist@latest --update-db
 RUN yarn build
 
-FROM golang:1.16.1-alpine3.13 as go-builder
+FROM golang:1.20.6-alpine3.17 as go-builder
 
 RUN apk add --no-cache gcc g++
 
 WORKDIR $GOPATH/src/github.com/grafana/grafana
 
 COPY go.mod go.sum ./
+RUN mkdir -p pkg/macaron/ && \
+    mkdir -p pkg/macaron/binding/
+RUN cp go.mod pkg/macaron/ && \
+    cp go.sum pkg/macaron/ && \
+    cp go.mod pkg/macaron/binding/ && \
+    cp go.sum pkg/macaron/binding/
 
 RUN go mod verify
 
@@ -32,7 +42,7 @@ COPY build.go package.json ./
 RUN go run build.go build
 
 # Final stage
-FROM alpine:3.13
+FROM alpine:3.17
 
 LABEL maintainer="Grafana team <hello@grafana.com>"
 
