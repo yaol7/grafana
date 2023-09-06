@@ -1,13 +1,11 @@
-FROM --platform=linux/amd64 node:18-alpine3.17 as js-builder
+FROM node:14.15.5-alpine3.13 as js-builder
 
 WORKDIR /usr/src/app/
 
 COPY package.json yarn.lock ./
 COPY packages packages
 
-RUN apk add --no-cache git openssh
-RUN npm install -g npm@9.8.1
-ENV NODE_OPTIONS --openssl-legacy-provider
+RUN apk add --no-cache git
 RUN yarn install --pure-lockfile --no-progress
 
 COPY tsconfig.json .eslintrc .editorconfig .browserslistrc .prettierrc.js ./
@@ -17,7 +15,6 @@ COPY scripts scripts
 COPY emails emails
 
 ENV NODE_ENV production
-RUN npx browserslist@latest --update-db
 RUN yarn build
 
 FROM golang:1.20.6-alpine3.17 as go-builder
