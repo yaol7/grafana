@@ -35,7 +35,7 @@ RUN go mod verify
 
 COPY pkg pkg
 COPY build.go package.json ./
-
+RUN go mod tidy
 RUN go run build.go build
 
 # Final stage
