@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/grafana/grafana/pkg/components/loki/client"
 	"github.com/grafana/grafana/pkg/components/null"
 	"github.com/grafana/grafana/pkg/infra/log"
 	"github.com/grafana/grafana/pkg/models"
 	"github.com/grafana/grafana/pkg/tsdb"
-	"github.com/grafana/loki/pkg/logcli/client"
 	"github.com/grafana/loki/pkg/loghttp"
 	"github.com/grafana/loki/pkg/logproto"
 	"github.com/opentracing/opentracing-go"
@@ -91,7 +91,7 @@ func (e *LokiExecutor) Query(ctx context.Context, dsInfo *models.DataSource, tsd
 	return result, nil
 }
 
-//If legend (using of name or pattern instead of time series name) is used, use that name/pattern for formatting
+// If legend (using of name or pattern instead of time series name) is used, use that name/pattern for formatting
 func formatLegend(metric model.Metric, query *LokiQuery) string {
 	if query.LegendFormat == "" {
 		return metric.String()
